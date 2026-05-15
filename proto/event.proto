@@ -1,0 +1,25 @@
+syntax = "proto3";
+package event;
+
+message Event {
+  string event_id   = 1;
+  string user_id    = 2;
+  string platform   = 3;
+  string event_type = 4;
+  int64  ts         = 5;
+  bytes  payload    = 6;
+}
+
+message Ack {
+  bool   success = 1;
+  string message = 2;
+}
+
+message EventBatch {
+  repeated Event events = 1;
+}
+
+service EventStream {
+  rpc SendEvent(Event) returns (Ack);
+  rpc SendBatch(EventBatch) returns (Ack);
+}
