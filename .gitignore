@@ -1,0 +1,11 @@
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.dylib
+engine
+bench_client
+test_queue
+test_pipeline
+CLAUDE.md
