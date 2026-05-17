@@ -1,8 +1,10 @@
+[简体中文](./README_zh.md) &nbsp;&nbsp;|&nbsp;&nbsp; **English**
+
 # event_stream_engine
 
-实时事件流处理引擎。从 gRPC/Kafka 接收事件，经过 Quality Pipeline 四阶段质量过滤后，通过 Lambda 架构分流至 Redis Streams（实时）和 ClickHouse（离线）。
+Real-time event stream processing engine. Receives events from gRPC/Kafka, passes them through a four-stage Quality Pipeline, then routes via Lambda architecture to Redis Streams (hot path) and ClickHouse (cold path).
 
-## 架构
+## Architecture
 
 ```
 event_collector ──TCP──> gRPC Server ──> BoundedQueue ──> Pipeline Worker
@@ -12,98 +14,48 @@ event_collector ──TCP──> gRPC Server ──> BoundedQueue ──> Pipeli
                                     ┌─────────────┤
                                     ▼             ▼
                               Schema Registry  Quality Pipeline
-                              (proto 版本)    (去重→纠偏→反伪造→补全)
+                              (proto versions) (dedup→drift→anti-forgery→enrich)
                                                       │
                                               Lambda Router
                                             ┌─────────┴─────────┐
                                             ▼                   ▼
-                                      热路 (Redis)         冷路 (ClickHouse)
-                                      click/view           其他事件
-                                      Circuit Breaker      批量写入
-                                      熔断降级
-                                                      │
-                                              Tenant Router
-                                              (一致性哈希)
+                                      Hot (Redis)          Cold (ClickHouse)
+                                      click/view           other events
+                                      Circuit Breaker      batch write
+                                            │
+                                      Tenant Router (consistent hashing)
 ```
 
-## 技术栈
-
-- **语言**: C++17
-- **RPC**: gRPC + Protobuf
-- **消息队列**: Kafka (librdkafka)
-- **缓存/实时**: Redis (redis++)
-- **存储**: ClickHouse (clickhouse-cpp)
-- **安全**: OpenSSL (HMAC-SHA256)
-- **日志**: spdlog
-- **构建**: CMake
-
-## 快速开始
-
-### 依赖安装 (Ubuntu/WSL)
+## Quick Start
 
 ```bash
-sudo apt-get install -y \
-    libgrpc++-dev protobuf-compiler-grpc \
-    librdkafka-dev \
-    libspdlog-dev \
-    libboost-all-dev \
-    libhiredis-dev \
-    libssl-dev
-# clickhouse-cpp: https://github.com/ClickHouse/clickhouse-cpp
-# redis-plus-plus: https://github.com/sewenew/redis-plus-plus
-```
-
-### 编译
-
-```bash
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-```
-
-### 运行
-
-```bash
-./engine [grpc_addr] [kafka_brokers] [redis_addr] [clickhouse_host]
-# 默认: ./engine 0.0.0.0:50051 localhost:9092 tcp://127.0.0.1:6379 localhost
-```
-
-### 压测
-
-```bash
-./bench_client [events] [threads]
-# 示例: ./bench_client 100000 100
+git clone https://github.com/happiness-cheng/event_stream_engine.git
+cd event_stream_engine
+mkdir build && cd build && cmake .. && make -j$(nproc)
+./engine  # default: gRPC :50051, Kafka localhost:9092, Redis localhost:6379, ClickHouse localhost
 ```
 
 ## Quality Pipeline
 
-| 阶段 | 功能 | 拒绝条件 |
-|------|------|----------|
-| 去重 | Redis SET / 内存滑动窗口 | 重复 event_id |
-| 纠偏 | Watermark 中位数 ±1 小时 | 时间戳偏差过大 |
-| 反伪造 | HMAC-SHA256 签名验证 | 签名不匹配 |
-| 补全 | GeoIP 字段补全 | 不拒绝，仅补全 |
+| Stage | Function | Reject Condition |
+|-------|----------|------------------|
+| Dedup | Redis SET / in-memory sliding window | Duplicate event_id |
+| Drift correction | Watermark median ±1 hour | Timestamp too far off |
+| Anti-forgery | HMAC-SHA256 verification | Signature mismatch |
+| Enrichment | GeoIP field enrichment | Never rejects |
 
-## 性能
+## Performance
 
-| 事件数 | 线程 | QPS | P50 | P99 | 成功率 |
-|--------|------|------|------|------|--------|
+| Events | Threads | QPS | P50 | P99 | Success |
+|--------|---------|------|------|------|--------|
 | 10,000 | 50 | 9,955 | 2.5ms | 5.4ms | 100% |
-| 50,000 | 100 | 5,549 | 15.0ms | 61.9ms | 100% |
 | 100,000 | 100 | 6,661 | 7.0ms | 52.6ms | 100% |
 
-详见 [tests/PERFORMANCE_REPORT.md](tests/PERFORMANCE_REPORT.md)
+## Tech Stack
 
-## 测试
+C++17, gRPC, Protobuf, Kafka, Redis, ClickHouse, OpenSSL, spdlog, CMake
 
-```bash
-# 单元测试
-./test_queue      # 队列测试 (5/5)
-./test_pipeline   # Pipeline 测试 (8/8)
-
-# 端到端测试
-bash tests/test_e2e.sh
-```
+See [README_zh.md](./README_zh.md) for full documentation.
 
 ## License
 
