@@ -1,6 +1,7 @@
 #include "event.grpc.pb.h"
 #include <grpcpp/grpcpp.h>
 #include <openssl/hmac.h>
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 #include <thread>
@@ -13,7 +14,11 @@
 using grpc::Channel; using grpc::ClientContext; using grpc::Status;
 using event::Event; using event::Ack; using event::EventBatch; using event::EventStream;
 
-static const std::string HMAC_SECRET = "event_engine_hmac_key";
+static std::string get_hmac_secret() {
+    const char* env = std::getenv("ENGINE_HMAC_KEY");
+    return env ? env : "event_engine_hmac_key";
+}
+static const std::string HMAC_SECRET = get_hmac_secret();
 
 std::string compute_hmac(const std::string& data) {
     unsigned char result[EVP_MAX_MD_SIZE]; unsigned int len = 0;
@@ -46,6 +51,8 @@ private:
 struct LatencyStats { int64_t p50, p95, p99, p999, max; double avg; };
 
 LatencyStats calc_stats(std::vector<int64_t>& latencies) {
+    LatencyStats s{};
+    if (latencies.empty()) return s;
     std::sort(latencies.begin(), latencies.end());
     size_t n = latencies.size(); LatencyStats s;
     s.p50 = latencies[n*50/100]; s.p95 = latencies[n*95/100]; s.p99 = latencies[n*99/100];
