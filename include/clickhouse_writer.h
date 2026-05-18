@@ -25,5 +25,5 @@ private:
     clickhouse::Client client_;
     std::vector<EventRow> buffer_;
     mutable std::mutex mtx_;
-    static constexpr size_t BATCH_SIZE = 100;
+    static constexpr size_t BATCH_SIZE = 1000;
 };

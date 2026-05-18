@@ -31,7 +31,7 @@ void KafkaConsumer::stop() {
 
 void KafkaConsumer::consume_loop() {
     while (running_) {
-        RdKafka::Message* msg = consumer_->consume(1000);
+        RdKafka::Message* msg = consumer_->consume(5000);
         if (!msg) continue;
         switch (msg->err()) {
             case RdKafka::ERR_NO_ERROR: { std::string data(static_cast<const char*>(msg->payload()), msg->len()); callback_(data); break; }
