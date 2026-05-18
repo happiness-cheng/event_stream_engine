@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
         GrpcServer grpc(grpc_addr, queue);
         std::signal(SIGINT, signal_handler); std::signal(SIGTERM, signal_handler);
 
-        int num_workers = 2; std::vector<std::thread> workers;
+        int num_workers = 6; std::vector<std::thread> workers;
         for (int i = 0; i < num_workers; ++i) workers.emplace_back(pipeline_worker);
         std::thread kafka_thread([&kafka]() { kafka.start(1); });
         std::thread grpc_thread([&grpc]() { grpc.start(); });

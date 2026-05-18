@@ -53,7 +53,8 @@ bool QualityPipeline::watermark_check(int64_t ts) {
     if (recent_ts_.size() > 1000) recent_ts_.pop_front();
     if (recent_ts_.size() < 10) { watermark_ = ts; return true; }
     std::vector<int64_t> sorted(recent_ts_.begin(), recent_ts_.end());
-    std::sort(sorted.begin(), sorted.end()); watermark_ = sorted[sorted.size() / 2];
+    std::nth_element(sorted.begin(), sorted.begin() + sorted.size() / 2, sorted.end());
+    watermark_ = sorted[sorted.size() / 2];
     return std::abs(ts - watermark_) <= 3600000;
 }
 
