@@ -25,8 +25,8 @@ private:
 
 GrpcServer::GrpcServer(const std::string& addr, BoundedQueue<std::string>& queue) : addr_(addr), queue_(queue) {}
 void GrpcServer::start() {
-    auto svc = std::make_unique<EventStreamServiceImpl>(queue_);
-    ServerBuilder builder; builder.AddListeningPort(addr_, grpc::InsecureServerCredentials()); builder.RegisterService(svc.get());
+    svc_ = std::make_unique<EventStreamServiceImpl>(queue_);
+    ServerBuilder builder; builder.AddListeningPort(addr_, grpc::InsecureServerCredentials()); builder.RegisterService(svc_.get());
     server_ = builder.BuildAndStart(); spdlog::info("gRPC server listening on {}", addr_); server_->Wait();
 }
 void GrpcServer::stop() { if (server_) server_->Shutdown(); }

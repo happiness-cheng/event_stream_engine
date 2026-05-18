@@ -9,6 +9,8 @@
 
 class ClickHouseWriter {
 public:
+    ClickHouseWriter(const ClickHouseWriter&) = delete;
+    ClickHouseWriter& operator=(const ClickHouseWriter&) = delete;
     ClickHouseWriter(const std::string& host = "localhost", int port = 9000,
                      const std::string& db = "default");
     ~ClickHouseWriter();

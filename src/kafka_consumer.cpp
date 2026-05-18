@@ -14,6 +14,7 @@ KafkaConsumer::~KafkaConsumer() { stop(); delete conf_; }
 void KafkaConsumer::start(int num_threads) {
     std::string errstr; consumer_ = RdKafka::KafkaConsumer::create(conf_, errstr);
     if (!consumer_) { spdlog::error("Failed to create Kafka consumer: {}", errstr); return; }
+    conf_ = nullptr;  // create() 成功后已接管 conf_ 所有权，防止 double-free
     RdKafka::ErrorCode err = consumer_->subscribe({topic_});
     if (err != RdKafka::ERR_NO_ERROR) { spdlog::error("Failed to subscribe to {}: {}", topic_, RdKafka::err2str(err)); return; }
     running_ = true;

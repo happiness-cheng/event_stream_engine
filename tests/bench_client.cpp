@@ -54,7 +54,7 @@ LatencyStats calc_stats(std::vector<int64_t>& latencies) {
     LatencyStats s{};
     if (latencies.empty()) return s;
     std::sort(latencies.begin(), latencies.end());
-    size_t n = latencies.size(); LatencyStats s;
+    size_t n = latencies.size();
     s.p50 = latencies[n*50/100]; s.p95 = latencies[n*95/100]; s.p99 = latencies[n*99/100];
     s.p999 = latencies[std::min(n-1, n*999/1000)]; s.max = latencies.back();
     double sum = 0; for (auto l : latencies) sum += l; s.avg = sum / n; return s;

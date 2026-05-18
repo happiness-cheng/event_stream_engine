@@ -15,4 +15,5 @@ private:
     std::string addr_;
     BoundedQueue<std::string>& queue_;
     std::unique_ptr<grpc::Server> server_;
+    std::unique_ptr<grpc::Service> svc_;  // 持有服务实现，防止 use-after-free
 };

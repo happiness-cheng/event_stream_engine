@@ -52,6 +52,7 @@ public:
         std::lock_guard<std::mutex> lk(mtx_);
         while (!queue_.empty()) queue_.pop();
         not_full_.notify_all();
+        not_empty_.notify_all();
         not_empty_.notify_all();  // 唤醒等待 not_empty_ 的消费者
     }
 private:

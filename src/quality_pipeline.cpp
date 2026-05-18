@@ -35,8 +35,7 @@ bool QualityPipeline::dedup(const std::string& event_id) {
         try {
             auto added = redis_->sadd("dedup:set", event_id);
             if (added == 0) return false;
-            static std::atomic<bool> expire_set{false};
-            if (!expire_set.exchange(true)) redis_->expire("dedup:set", 3600);
+            redis_->expire("dedup:set", 3600);  // 每次续期 TTL
             return true;
         } catch (const std::exception& e) { spdlog::warn("redis dedup failed, falling back to memory: {}", e.what()); }
     }
@@ -52,9 +51,10 @@ bool QualityPipeline::watermark_check(int64_t ts) {
     recent_ts_.push_back(ts);
     if (recent_ts_.size() > 1000) recent_ts_.pop_front();
     if (recent_ts_.size() < 10) { watermark_ = ts; return true; }
-    std::vector<int64_t> sorted(recent_ts_.begin(), recent_ts_.end());
-    std::nth_element(sorted.begin(), sorted.begin() + sorted.size() / 2, sorted.end());
-    watermark_ = sorted[sorted.size() / 2];
+    thread_local std::vector<int64_t> sorted_buf;
+    sorted_buf.assign(recent_ts_.begin(), recent_ts_.end());
+    std::nth_element(sorted_buf.begin(), sorted_buf.begin() + sorted_buf.size() / 2, sorted_buf.end());
+    watermark_ = sorted_buf[sorted_buf.size() / 2];
     return std::abs(ts - watermark_) <= 3600000;
 }
 
@@ -66,9 +66,8 @@ bool QualityPipeline::verify_hmac(const event::Event& ev) {
     std::string data = ev.event_id() + ev.user_id() + ev.event_type() + std::to_string(ev.ts()) + original_payload;
     std::string expected_hmac = compute_hmac(data, hmac_secret_);
     if (received_hmac.size() != expected_hmac.size()) return false;
-    volatile unsigned char diff = 0;
-    for (size_t i = 0; i < expected_hmac.size(); ++i) diff |= received_hmac[i] ^ expected_hmac[i];
-    return diff == 0;
+    // CRYPTO_memcmp 保证常量时间比较，防止时序攻击
+    return CRYPTO_memcmp(received_hmac.data(), expected_hmac.data(), 32) == 0;
 }
 
 void QualityPipeline::enrich_geoip(event::Event& ev) {

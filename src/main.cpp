@@ -10,6 +10,7 @@
 #include <thread>
 #include <atomic>
 #include <csignal>
+#include <cstdlib>
 #include <spdlog/spdlog.h>
 
 static std::atomic<bool> g_running{true};
@@ -26,10 +27,11 @@ int main(int argc, char* argv[]) {
         BoundedQueue<std::string> queue(10000);
         sw::redis::Redis redis(redis_addr);
         SchemaRegistry schema;
-        QualityPipeline pipeline("event_engine_hmac_key", &redis);
+        std::string hmac_key = std::getenv("ENGINE_HMAC_KEY") ? std::getenv("ENGINE_HMAC_KEY") : "event_engine_hmac_key";
+        QualityPipeline pipeline(hmac_key, &redis);
         ClickHouseWriter ch_writer(ch_host);
         LambdaRouter router(redis_addr, &ch_writer);
-        CircuitBreaker cb(5, std::chrono::seconds(30), 2);
+        // 注意：熔断器在 LambdaRouter 内部创建（redis_cb_），main 里不需要单独的
         TenantRouter tenant_router;
         tenant_router.add_tenant("tenant_a"); tenant_router.add_tenant("tenant_b"); tenant_router.add_tenant("tenant_c");
 
@@ -44,6 +46,7 @@ int main(int argc, char* argv[]) {
                 auto result = pipeline.process(ev);
                 if (!result.passed) { pipeline_rejected++; continue; }
                 std::string tenant_node = tenant_router.route(ev.user_id());
+                spdlog::trace("tenant route: user_id={} -> node={}", ev.user_id(), tenant_node);
                 std::string path = router.route(ev);
                 if (path == "hot") { router.write_hot(ev); hot_routed++; }
                 else { router.write_cold(ev); cold_routed++; }
