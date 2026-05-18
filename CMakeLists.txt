@@ -61,6 +61,7 @@ find_library(ZSTD_LIB
     REQUIRED
 )
 
+# Generate proto + gRPC stubs
 set(PROTO_FILE proto/event.proto)
 
 set(PROTO_SRCS ${CMAKE_CURRENT_BINARY_DIR}/event.pb.cc)
@@ -116,6 +117,7 @@ target_link_libraries(engine PRIVATE
     Threads::Threads
 )
 
+# Unit tests
 add_executable(test_queue tests/test_queue.cpp)
 target_include_directories(test_queue PRIVATE include)
 target_link_libraries(test_queue PRIVATE Threads::Threads)
@@ -152,6 +154,7 @@ target_link_libraries(test_pipeline PRIVATE
     Threads::Threads
 )
 
+# Benchmark client
 add_executable(bench_client tests/bench_client.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
