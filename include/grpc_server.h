@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/impl/service_type.h>  // grpc::Service 完整定义
 #include "queue.h"
 #include "event.pb.h"
 

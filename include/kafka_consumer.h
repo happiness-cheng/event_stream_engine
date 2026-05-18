@@ -20,7 +20,7 @@ private:
     std::string topic_;
     std::string group_id_;
     EventCallback callback_;
-    std::atomic<bool> running_{false};
+    std::atomic<bool> running_{false};//普通bool可能被编译器优化缓存到寄存器，导致看不见修改，atomic禁止这种优化，保证可见性
     std::vector<std::thread> threads_;
     RdKafka::KafkaConsumer* consumer_ = nullptr;
     RdKafka::Conf* conf_ = nullptr;
