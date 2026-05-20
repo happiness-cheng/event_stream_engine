@@ -10,13 +10,29 @@ class EventStreamServiceImpl final : public EventStream::Service {
 public:
     explicit EventStreamServiceImpl(BoundedQueue<std::string>& queue) : queue_(queue) {}
     Status SendEvent(ServerContext* ctx, const Event* req, Ack* reply) override {
+        // 输入大小校验：单条事件不超过 64KB，防止 OOM
+        if (req->payload().size() > 65536) {
+            reply->set_success(false);
+            reply->set_message("payload too large (>64KB)");
+            return Status::OK;
+        }
         std::string data;
         if (!req->SerializeToString(&data)) { reply->set_success(false); reply->set_message("serialize failed"); return Status::OK; }
         queue_.push(std::move(data)); received_++; reply->set_success(true); reply->set_message("ok"); return Status::OK;
     }
     Status SendBatch(ServerContext* ctx, const EventBatch* req, Ack* reply) override {
+        // 批量不超过 1000 条，防止单次占用过多内存
+        if (req->events().size() > 1000) {
+            reply->set_success(false);
+            reply->set_message("batch too large (>1000 events)");
+            return Status::OK;
+        }
         int count = 0;
-        for (const auto& ev : req->events()) { std::string data; if (ev.SerializeToString(&data)) { queue_.push(std::move(data)); count++; } }
+        for (const auto& ev : req->events()) {
+            if (ev.payload().size() > 65536) continue;  // 跳过超大事件
+            std::string data;
+            if (ev.SerializeToString(&data)) { queue_.push(std::move(data)); count++; }
+        }
         received_ += count; reply->set_success(true); reply->set_message("batch:" + std::to_string(count)); return Status::OK;
     }
 private:

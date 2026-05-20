@@ -11,6 +11,7 @@
 #include <atomic>
 #include <csignal>
 #include <cstdlib>
+#include <cstring>
 #include <spdlog/spdlog.h>
 
 static std::atomic<bool> g_running{true};
@@ -27,7 +28,12 @@ int main(int argc, char* argv[]) {
         BoundedQueue<std::string> queue(10000);
         sw::redis::Redis redis(redis_addr);
         SchemaRegistry schema;
-        std::string hmac_key = std::getenv("ENGINE_HMAC_KEY") ? std::getenv("ENGINE_HMAC_KEY") : "event_engine_hmac_key";
+        const char* hmac_env = std::getenv("ENGINE_HMAC_KEY");
+        if (!hmac_env || strlen(hmac_env) == 0) {
+            spdlog::error("ENGINE_HMAC_KEY 环境变量未设置，拒绝启动（安全要求）");
+            return 1;
+        }
+        std::string hmac_key(hmac_env);
         QualityPipeline pipeline(hmac_key, &redis);
         ClickHouseWriter ch_writer(ch_host);
         LambdaRouter router(redis_addr, &ch_writer);

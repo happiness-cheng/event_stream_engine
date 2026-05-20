@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake git pkg-config \
     libgrpc++-dev libprotobuf-dev protobuf-compiler protobuf-compiler-grpc \
-    libspdlog-dev libfmt-dev \
+    libspdlog1.10 libfmt8 \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -50,7 +50,7 @@ FROM ubuntu:22.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgrpc++1.51 libprotobuf23 libssl3 \
-    libspdlog-dev libfmt-dev \
+    libspdlog1.10 libfmt8 \
     && rm -rf /var/lib/apt/lists/*
 
 # 从 builder 拷贝编译产物和第三方库

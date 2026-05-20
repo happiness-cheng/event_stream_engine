@@ -2,6 +2,7 @@
 #include <grpcpp/grpcpp.h>
 #include <openssl/hmac.h>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <vector>
 #include <thread>
@@ -16,7 +17,10 @@ using event::Event; using event::Ack; using event::EventBatch; using event::Even
 
 static std::string get_hmac_secret() {
     const char* env = std::getenv("ENGINE_HMAC_KEY");
-    return env ? env : "event_engine_hmac_key";
+    if (!env || strlen(env) == 0) {
+        if (!env) { std::cerr << "ENGINE_HMAC_KEY not set" << std::endl; exit(1); }
+    }
+    return env;
 }
 static const std::string HMAC_SECRET = get_hmac_secret();
 

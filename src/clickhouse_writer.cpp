@@ -2,6 +2,7 @@
 #include <clickhouse/block.h>
 #include <clickhouse/columns/string.h>
 #include <clickhouse/columns/numeric.h>
+#include <fstream>
 #include <spdlog/spdlog.h>
 
 ClickHouseWriter::ClickHouseWriter(const std::string& host, int port,
@@ -87,11 +88,27 @@ void ClickHouseWriter::do_flush() {
     block.AppendColumn("platform", col_platform);
     block.AppendColumn("ts", col_ts);
 
-    try {
-        client_.Insert("events", block);
-        spdlog::debug("clickhouse: flushed {} events", batch.size());
-    } catch (const std::exception& e) {
-        spdlog::error("clickhouse: insert failed: {}", e.what());
+    // 重试 3 次，失败则记录到 dead_letter.log
+    bool success = false;
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        try {
+            client_.Insert("events", block);
+            spdlog::debug("clickhouse: flushed {} events", batch.size());
+            success = true;
+            break;
+        } catch (const std::exception& e) {
+            spdlog::warn("clickhouse: insert attempt {}/3 failed: {}", attempt + 1, e.what());
+            if (attempt < 2) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
+    if (!success) {
+        spdlog::error("clickhouse: insert failed after 3 retries, {} events lost", batch.size());
+        // 写入 dead_letter 日志，避免静默丢数据
+        std::ofstream dl("dead_letter.log", std::ios::app);
+        for (const auto& row : batch) {
+            dl << row.event_id << "," << row.user_id << "," << row.event_type
+               << "," << row.platform << "," << row.ts << "\n";
+        }
     }
 }
 
