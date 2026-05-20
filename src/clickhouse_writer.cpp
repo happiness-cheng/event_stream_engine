@@ -102,12 +102,25 @@ void ClickHouseWriter::do_flush() {
         }
     }
     if (!success) {
-        spdlog::error("clickhouse: insert failed after 3 retries, {} events lost", batch.size());
-        // 写入 dead_letter 日志，避免静默丢数据
-        std::ofstream dl("dead_letter.log", std::ios::app);
+        spdlog::error("clickhouse: insert failed after 3 retries, {} events lost, 落盘到 ch_fallback.jsonl", batch.size());
+        // 写入 JSONL 格式落盘文件，每行一个 JSON，方便事后恢复导入
+        std::ofstream dl("ch_fallback.jsonl", std::ios::app);
         for (const auto& row : batch) {
-            dl << row.event_id << "," << row.user_id << "," << row.event_type
-               << "," << row.platform << "," << row.ts << "\n";
+            // 简单 JSON 拼接，转义引号避免格式损坏
+            auto escape = [](const std::string& s) {
+                std::string out;
+                for (char c : s) {
+                    if (c == '"') out += "\\\"";
+                    else if (c == '\\') out += "\\\\";
+                    else out += c;
+                }
+                return out;
+            };
+            dl << "{\"event_id\":\"" << escape(row.event_id)
+               << "\",\"user_id\":\"" << escape(row.user_id)
+               << "\",\"event_type\":\"" << escape(row.event_type)
+               << "\",\"platform\":\"" << escape(row.platform)
+               << "\",\"ts\":" << row.ts << "}\n";
         }
     }
 }

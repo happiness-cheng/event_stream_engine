@@ -9,12 +9,14 @@ using event::Event; using event::Ack; using event::EventBatch; using event::Even
 class EventStreamServiceImpl final : public EventStream::Service {
 public:
     explicit EventStreamServiceImpl(BoundedQueue<std::string>& queue) : queue_(queue) {}
+    // 单条事件和批量事件的最大限制常量
+    static constexpr size_t MAX_PAYLOAD_SIZE = 65536;   // 64KB
+    static constexpr int MAX_BATCH_SIZE = 1000;
+
     Status SendEvent(ServerContext* ctx, const Event* req, Ack* reply) override {
         // 输入大小校验：单条事件不超过 64KB，防止 OOM
-        if (req->payload().size() > 65536) {
-            reply->set_success(false);
-            reply->set_message("payload too large (>64KB)");
-            return Status::OK;
+        if (req->payload().size() > MAX_PAYLOAD_SIZE) {
+            return Status(grpc::StatusCode::RESOURCE_EXHAUSTED, "payload too large (>64KB)");
         }
         std::string data;
         if (!req->SerializeToString(&data)) { reply->set_success(false); reply->set_message("serialize failed"); return Status::OK; }
@@ -22,10 +24,8 @@ public:
     }
     Status SendBatch(ServerContext* ctx, const EventBatch* req, Ack* reply) override {
         // 批量不超过 1000 条，防止单次占用过多内存
-        if (req->events().size() > 1000) {
-            reply->set_success(false);
-            reply->set_message("batch too large (>1000 events)");
-            return Status::OK;
+        if (req->events().size() > MAX_BATCH_SIZE) {
+            return Status(grpc::StatusCode::RESOURCE_EXHAUSTED, "batch too large (>1000 events)");
         }
         int count = 0;
         for (const auto& ev : req->events()) {

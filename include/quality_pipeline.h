@@ -15,7 +15,8 @@ struct QualityResult {
 
 class QualityPipeline {
 public:
-    QualityPipeline(const std::string& hmac_secret = "default_secret_key",
+    // 安全修复：移除默认密钥，必须显式传入 HMAC secret
+    QualityPipeline(const std::string& hmac_secret,
                     sw::redis::Redis* redis = nullptr);
     QualityResult process(event::Event& ev);
     static std::string sign(const event::Event& ev, const std::string& secret);
